@@ -1,15 +1,15 @@
 # api.py
 
 import requests
+import mimetypes
+import os
 from config import SERVER_URL, REQUEST_TIMEOUT
+
 
 
 def login(username, password):
     """
-    Autentica un usuario en el servidor.
-
-    Retorna:
-        dict con la respuesta del servidor
+    Inicio de sesión.
     """
 
     url = f"{SERVER_URL}/login"
@@ -20,6 +20,7 @@ def login(username, password):
     }
 
     try:
+
         response = requests.post(
             url,
             json=data,
@@ -28,39 +29,61 @@ def login(username, password):
 
         return response.json()
 
+
     except requests.exceptions.RequestException as e:
+
         return {
-            "success": False,
+            "error": True,
             "message": f"Error de conexión: {str(e)}"
         }
 
 
+
 def upload_file(filepath, token, metadata):
     """
-    Envía un archivo al servidor.
-
-    filepath:
-        ruta local del archivo
-
-    token:
-        JWT recibido en login
-
-    metadata:
-        información adicional del estudio
+    Subida de estudios.
+    Envía:
+    - archivo real
+    - campos del estudio
+    - JWT
     """
 
     url = f"{SERVER_URL}/upload"
+
 
     headers = {
         "Authorization": f"Bearer {token}"
     }
 
+
     try:
+
         with open(filepath, "rb") as file:
 
+            # Detectar tipo MIME del archivo
+            file_type, _ = mimetypes.guess_type(filepath)
+
+
+            # Si no se reconoce la extensión
+            # se manda un tipo genérico
+            if file_type is None:
+
+                file_type = "application/octet-stream"
+
+
+            filename = os.path.basename(filepath)
+
+
             files = {
-                "file": file
+
+                "file": (
+                 filename,
+                    file,
+                    file_type
+                )
+
             }
+
 
             response = requests.post(
                 url,
@@ -70,51 +93,112 @@ def upload_file(filepath, token, metadata):
                 timeout=REQUEST_TIMEOUT
             )
 
+
+        print("STATUS:", response.status_code)
+        print("RESPUESTA:", response.text)
+
+
         return response.json()
 
-    except requests.exceptions.RequestException as e:
-        return {
-            "success": False,
-            "message": f"Error de conexión: {str(e)}"
-        }
+
 
     except FileNotFoundError:
+
         return {
-            "success": False,
+            "error": True,
             "message": "Archivo no encontrado"
         }
 
 
+
+    except requests.exceptions.RequestException as e:
+
+        return {
+            "error": True,
+            "message": f"Error de conexión: {str(e)}"
+        }
+
+
+
 def get_studies(token):
     """
-    Obtiene la lista de estudios disponibles.
+    Obtiene todos los estudios.
     """
 
     url = f"{SERVER_URL}/studies"
+
 
     headers = {
         "Authorization": f"Bearer {token}"
     }
 
+
     try:
+
         response = requests.get(
             url,
             headers=headers,
             timeout=REQUEST_TIMEOUT
         )
 
+
+        print("STATUS:", response.status_code)
+        print("RESPUESTA:", response.text)
+
+
         return response.json()
 
+
+
     except requests.exceptions.RequestException as e:
+
         return {
-            "success": False,
+            "error": True,
             "message": f"Error de conexión: {str(e)}"
         }
 
 
+
 def get_study(study_code, token):
     """
-    Obtiene la información de un estudio específico.
+    Obtiene un estudio específico.
+    """
+
+    url = f"{SERVER_URL}/study/{study_code}"
+
+
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+
+
+    try:
+
+        response = requests.get(
+            url,
+            headers=headers,
+            timeout=REQUEST_TIMEOUT
+        )
+
+
+        print("STATUS:", response.status_code)
+        print("RESPUESTA:", response.text)
+
+
+        return response.json()
+
+
+
+    except requests.exceptions.RequestException as e:
+
+        return {
+            "error": True,
+            "message": f"Error de conexión: {str(e)}"
+        }
+    
+def delete_study(study_code, token):
+    """
+    Elimina un estudio del servidor.
     """
 
     url = f"{SERVER_URL}/study/{study_code}"
@@ -123,17 +207,26 @@ def get_study(study_code, token):
         "Authorization": f"Bearer {token}"
     }
 
+
     try:
-        response = requests.get(
+
+        response = requests.delete(
             url,
             headers=headers,
             timeout=REQUEST_TIMEOUT
         )
 
+
+        print("STATUS:", response.status_code)
+        print("RESPUESTA:", response.text)
+
+
         return response.json()
 
+
     except requests.exceptions.RequestException as e:
+
         return {
-            "success": False,
-            "message": f"Error de conexión: {str(e)}"
+            "error": True,
+            "message": str(e)
         }
