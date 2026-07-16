@@ -377,3 +377,57 @@ def register_routes(app):
             "report": report.report_text if report else None
 
         }), 200
+
+
+    @app.route("/study/<study_code>", methods=["DELETE"])
+    @jwt_required()
+    def delete_study(study_code):
+        current_user = get_jwt_identity()
+        study = Study.query.filter_by(
+            study_code=study_code
+        ).first()
+        if study is None:
+            return jsonify({
+                "message": "Estudio no encontrado."
+            }), 404
+
+        file_record = File.query.filter_by(
+            study_id=study.id
+        ).first()
+        if file_record:
+            try:
+                if os.path.exists(file_record.file_path):
+                    os.remove(file_record.file_path)
+            except Exception as e:
+                logging.error(
+                    f"Error al eliminar archivo fisico del estudio {study_code}: {str(e)}"
+                )
+            db.session.delete(file_record)
+
+        report_record = Report.query.filter_by(
+            study_id=study.id
+        ).first()
+        if report_record:
+            db.session.delete(report_record)
+
+        History.query.filter_by(
+            study_id=study.id
+        ).update({"study_id": None})
+
+        db.session.delete(study)
+
+        history = History(
+            action=f"Estudio {study_code} eliminado por el usuario {current_user}",
+            study_id=None
+        )
+        db.session.add(history)
+
+        db.session.commit()
+
+        logging.info(
+            f"Usuario {current_user} elimino el estudio {study_code}"
+        )
+
+        return jsonify({
+            "message": "Estudio eliminado correctamente"
+        }), 200
